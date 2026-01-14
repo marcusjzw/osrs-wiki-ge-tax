@@ -1,0 +1,13 @@
+{
+    "manifest_version": 3,
+    "name": "OSRS Wiki Prices - Tax Calculator",
+    "version": "1.0",
+    "description": "Adds a 'Margin (Post-Tax)' column to the favourites page.",
+    "content_scripts": [
+      {
+        "matches": ["https://prices.runescape.wiki/osrs/favourites*"],
+        "js": ["content.js"],
+        "css": ["styles.css"]
+      }
+    ]
+  }
