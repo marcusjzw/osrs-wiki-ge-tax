@@ -1,4 +1,4 @@
-console.log("OSRS Tax Extension: Optimized Performance Version Loaded.");
+console.log("OSRS Tax Extension: Refactored Version Loaded.");
 
 const TAX_RATE = 0.02;
 const STORAGE_KEY = 'OSRS_HIDDEN_ITEMS';
@@ -8,21 +8,8 @@ const STATE = {
     sortBy: null,
     sortDir: 'desc',
     hiddenItems: new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')),
-    needsSort: false // New flag to prevent constant re-sorting
+    needsSort: false
 };
-
-// --- Helper: Parse Numbers ---
-function parseRunescapeNumber(text) {
-    if (!text) return 0;
-    let cleanText = text.trim().replace(/,/g, '').toLowerCase();
-    let multiplier = 1;
-    if (cleanText.endsWith('k')) multiplier = 1_000;
-    else if (cleanText.endsWith('m')) multiplier = 1_000_000;
-    else if (cleanText.endsWith('b')) multiplier = 1_000_000_000;
-    cleanText = cleanText.replace(/[kmb]/g, '');
-    const num = parseFloat(cleanText);
-    return isNaN(num) ? 0 : Math.floor(num * multiplier);
-}
 
 // --- Main Loop ---
 function processTable() {
@@ -30,14 +17,13 @@ function processTable() {
     let targetTable = null;
     let idx = {};
 
-    // 1. Locate Table
+    // 1. Locate Table & Base Indices
     for (const table of tables) {
         const headers = Array.from(table.querySelectorAll('thead th'));
         idx.name = headers.findIndex(th => th.textContent.toLowerCase().includes("name"));
         idx.sell = headers.findIndex(th => th.textContent.toLowerCase().includes("sell price"));
         idx.margin = headers.findIndex(th => th.textContent.toLowerCase().trim() === "margin");
         idx.limit = headers.findIndex(th => th.textContent.toLowerCase().includes("buy limit"));
-        idx.profit = headers.findIndex(th => th.textContent.toLowerCase().includes("potential profit"));
         
         if (idx.sell !== -1 && idx.margin !== -1 && idx.name !== -1) {
             targetTable = table;
@@ -67,7 +53,7 @@ function processTable() {
                 STATE.hiddenItems.clear();
                 localStorage.removeItem(STORAGE_KEY);
                 btn.textContent = `Unhide All Items (0)`;
-                STATE.needsSort = true; // Force update
+                STATE.needsSort = true;
                 processTable();
             }
         });
@@ -135,7 +121,6 @@ function processTable() {
     const idxMarginHeader = finalHeaders.indexOf(h1);
     const idxProfitHeader = finalHeaders.indexOf(h2);
     
-    // Track if any data actually changed
     let dataChanged = false;
 
     rows.forEach(row => {
@@ -159,7 +144,7 @@ function processTable() {
         const isHidden = STATE.hiddenItems.has(itemName);
         if (isHidden && row.style.display !== 'none') {
             row.style.display = 'none';
-            dataChanged = true; // Visibility changed, might need layout update
+            dataChanged = true;
         } else if (!isHidden && row.style.display === 'none') {
             row.style.display = '';
             dataChanged = true;
@@ -182,27 +167,28 @@ function processTable() {
                 if (itemName) {
                     STATE.hiddenItems.add(itemName);
                     localStorage.setItem(STORAGE_KEY, JSON.stringify([...STATE.hiddenItems]));
-                    row.style.display = 'none'; // Instant hide for responsiveness
-                    STATE.needsSort = true; // Queue a sort for next tick
+                    row.style.display = 'none';
+                    STATE.needsSort = true;
                 }
             });
 
             removeCell.appendChild(btn);
             if (row.firstChild) row.insertBefore(removeCell, row.firstChild);
             else row.appendChild(removeCell);
-            dataChanged = true; // Structure changed
+            dataChanged = true;
         }
 
-        // -- Math --
-        const sellPrice = parseRunescapeNumber(cells[trueIdxSell]?.textContent);
-        const margin = parseRunescapeNumber(cells[trueIdxMargin]?.textContent);
-        const limit = parseRunescapeNumber(cells[trueIdxLimit]?.textContent) || 0;
+        // -- Math (Simple Number Parsing) --
+        // Simply remove commas and convert to Integer. No K/M/B logic needed.
+        const sellPrice = parseInt(cells[trueIdxSell]?.textContent.replace(/,/g, '') || '0', 10);
+        const margin = parseInt(cells[trueIdxMargin]?.textContent.replace(/,/g, '') || '0', 10);
+        const limit = parseInt(cells[trueIdxLimit]?.textContent.replace(/,/g, '') || '0', 10);
 
         const tax = Math.floor(sellPrice * TAX_RATE);
         const marginPostTax = margin - tax;
         const profitPostTax = marginPostTax * limit;
 
-        // -- Update Cells (Returns true if value CHANGED) --
+        // -- Update Cells --
         const mChanged = updateCell(row, 'cell-tax-margin', marginPostTax, idxMarginHeader);
         const pChanged = updateCell(row, 'cell-tax-profit', profitPostTax, idxProfitHeader);
 
@@ -212,7 +198,7 @@ function processTable() {
     // 5. Apply Sorting (ONLY if necessary)
     if (STATE.sortBy && (dataChanged || STATE.needsSort)) {
         applySort(targetTable, rows);
-        STATE.needsSort = false; // Reset flag
+        STATE.needsSort = false;
     }
 }
 
@@ -224,7 +210,7 @@ function handleHeaderClick(columnType) {
         STATE.sortBy = columnType;
         STATE.sortDir = 'desc';
     }
-    STATE.needsSort = true; // User clicked, FORCE a sort immediately
+    STATE.needsSort = true;
     processTable();
 }
 
@@ -260,15 +246,14 @@ function updateCell(row, className, value, targetIndex) {
         } else {
             row.appendChild(cell);
         }
-        changed = true; // New cell created
+        changed = true;
     }
 
-    // Only update DOM if value is different (Performance Saver)
     if (cell.dataset.val != value) {
         cell.textContent = value.toLocaleString();
         cell.dataset.val = value;
         cell.style.color = value > 0 ? '#00e600' : '#ff3333';
-        changed = true; // Value changed
+        changed = true;
     }
     return changed;
 }
@@ -293,5 +278,5 @@ function applySort(table, rows) {
     tbody.appendChild(frag);
 }
 
-// Run fast (200ms) but only act if necessary
+// Run loop
 setInterval(processTable, 200);
