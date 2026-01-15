@@ -7,6 +7,7 @@ A Chrome Extension that adds "Post-Tax Margin" and "Total Profit" columns to the
 - Sortable columns for **Margin (Post-Tax)** and **Total Profit**.
 - Reactive: Updates instantly when the Wiki auto-refreshes prices.
 - Persists sort preference (High -> Low) even after table refreshes.
+- Hide and unhide items you have already flipped within the 4 hour window.
 
 ## Installation
 1. Clone this repo.
